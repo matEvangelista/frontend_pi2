@@ -1,26 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+// App.js
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useState } from 'react';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap/dist/js/bootstrap.bundle.min.js'; 
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
-import './App.css'
+import './App.css';
+import Home from './components/home';
+import Livro from './components/livro';
+import Sidebar from './components/sidebar';
 import Navbar from './components/navbar';
+import Livros from './components/livros';
+import Descobrir from './components/descobrir';
+import LendoAgora from './components/lendoAgora';
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
 
   return (
-    <>
-    <Navbar titulo={"Minha Biblioteca"}></Navbar>
-    <div className="container mt-5">
-      <h1 className="text-primary">Olá, Bootstrap no React!</h1>
-      <h2>Count is {count}</h2>
-      <button className="btn btn-success" onClick={() => setCount((count) => count + 1)}>Clique aqui</button>
-    </div>
-    </>
+    <BrowserRouter>
+      <div className="app-layout d-flex">
+        <Sidebar />
+        <div className="main-content flex-grow-1">
+          <Navbar titulo="Biblioteca Virtual" />
+          <div className="">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/livros/:id" element={<Livro />} />
+              <Route path="/livros" element={<Livros />} />
+              <Route path="/descobrir" element={<Descobrir />} />
+              <Route path="/lendo-agora" element={<LendoAgora />} />
+            </Routes>
+          </div>
+        </div>
+      </div>
+    </BrowserRouter>
   );
 }
 
-export default App
+export default App;
