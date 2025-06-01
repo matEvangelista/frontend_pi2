@@ -24,7 +24,7 @@ function App() {
       <div className="app-layout d-flex">
         <Sidebar />
         <div className="main-content flex-grow-1">
-          <Navbar titulo="Biblioteca Virtual" />
+          <Navbar titulo="Minha Biblioteca" />
           <div className="">
             <Routes>
               <Route path="/" element={<Home />} />

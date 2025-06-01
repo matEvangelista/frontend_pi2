@@ -80,6 +80,13 @@
   width: calc(100% - 250px); /* Adjust width to account for the sidebar */
 }
 
+/*.navbar deve ter width de 100% se a largura da tela for menor que o md do boostrasp*/
+@media (max-width: 768px) {
+    .navbar {
+        width: 100%; /* Full width on smaller screens */
+    }
+}
+
 .sidebar {
     width: 250px;
     min-height: 100vh;
@@ -110,6 +117,7 @@
 .sidebar {
     width: 250px;
     min-height: 100vh;
+    background-color: #e2c4a5 !important;
   }
   
   .app-layout {

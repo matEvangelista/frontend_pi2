@@ -1,38 +1,38 @@
 import './components.css';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Sidebar() {
+  const [estantes, setEstantes] = useState([]);
+
+  function adicionarEstante(novaEstante) {
+    setEstantes((prev) => [...prev, novaEstante]);
+  }
+
   return (
     <>
-      {/* Sidebar fixa para md+ */}
       <div className="sidebar d-none d-md-block bg-light border-end">
-        <SidebarContent />
+        <SidebarContent estantes={estantes} />
       </div>
 
-      {/* Sidebar mobile (offcanvas) */}
       <div className="offcanvas offcanvas-start d-md-none" tabIndex="-1" id="mobileSidebar">
         <div className="offcanvas-header">
           <h5 className="offcanvas-title">Menu</h5>
-          <button
-            type="button"
-            className="btn-close"
-            data-bs-dismiss="offcanvas"
-            aria-label="Fechar"
-          ></button>
+          <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
         </div>
         <div className="offcanvas-body">
-          <SidebarContent />
+          <SidebarContent estantes={estantes} />
         </div>
       </div>
 
-      {/* Modal de Adicionar Livro */}
+      {/* Modais */}
       <ModalAdicionarLivro />
+      <ModalNovaEstante onCriar={adicionarEstante} />
     </>
   );
 }
 
-function SidebarContent() {
+function SidebarContent({ estantes }) {
   return (
     <div className="p-3 d-flex flex-column h-100 justify-content-between">
       <ul className="nav flex-column">
@@ -58,31 +58,28 @@ function SidebarContent() {
         </li>
 
         <h6 className="text-uppercase text-muted px-2">Minhas Estantes</h6>
-        <li className="nav-item mb-2">
-          <Link to="/favoritos" className="nav-link text-dark">
-            <i className="bi bi-journal-bookmark me-2"></i> Favoritos
-          </Link>
-        </li>
-        <li className="nav-item mb-2">
-          <Link to="/lidos" className="nav-link text-dark">
-            <i className="bi bi-journal-check me-2"></i> Lidos
-          </Link>
-        </li>
-        <li className="nav-item mb-4">
-          <Link to="/desejados" className="nav-link text-dark">
-            <i className="bi bi-journal-plus me-2"></i> Desejados
-          </Link>
-        </li>
+        
+
+        {estantes.map((estante, idx) => (
+          <li key={idx} className="nav-item mb-2">
+            <Link to={`/estante/${estante.id}`} className="nav-link text-dark">
+              <span className="me-2">{estante.emoji}</span> {estante.nome}
+            </Link>
+          </li>
+        ))}
 
         <hr />
         <li className="nav-item mt-2">
-          <Link to="/nova-estante" className="nav-link text-muted">
+          <button
+            className="btn btn-sm btn-outline-secondary w-100"
+            data-bs-toggle="modal"
+            data-bs-target="#modalNovaEstante"
+          >
             <i className="bi bi-plus-lg me-2"></i> Nova Estante
-          </Link>
+          </button>
         </li>
       </ul>
 
-      {/* Botão para abrir modal de adicionar livro */}
       <div className="mt-4">
         <button
           type="button"
@@ -111,25 +108,12 @@ function ModalAdicionarLivro() {
   }
 
   return (
-    <div
-      className="modal fade"
-      id="modalAdicionarLivro"
-      tabIndex="-1"
-      aria-labelledby="modalAdicionarLivroLabel"
-      aria-hidden="true"
-    >
+    <div className="modal fade" id="modalAdicionarLivro" tabIndex="-1" aria-hidden="true">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
-            <h5 className="modal-title" id="modalAdicionarLivroLabel">
-              Adicionar Livro
-            </h5>
-            <button
-              type="button"
-              className="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Fechar"
-            ></button>
+            <h5 className="modal-title">Adicionar Livro</h5>
+            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
           </div>
           <div className="modal-body">
             <form>
@@ -147,28 +131,97 @@ function ModalAdicionarLivro() {
               </div>
               <div className="mb-3">
                 <label htmlFor="imagemLivro" className="form-label">Imagem da Capa</label>
-                <input
-                  type="file"
-                  className="form-control"
-                  id="imagemLivro"
-                  accept="image/*"
-                  onChange={handleImagemChange}
-                />
+                <input type="file" className="form-control" id="imagemLivro" accept="image/*" onChange={handleImagemChange} />
               </div>
               {preview && (
                 <div className="text-center mb-3">
-                  <img src={preview} alt="Prévia da capa" className="img-fluid rounded" style={{ maxHeight: '200px' }} />
+                  <img src={preview} alt="Prévia" className="img-fluid rounded" style={{ maxHeight: '200px' }} />
                 </div>
               )}
             </form>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-              Cancelar
-            </button>
-            <button type="button" className="btn btn-primary">
-              Adicionar
-            </button>
+            <button className="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button className="btn btn-primary">Adicionar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalNovaEstante({ onCriar }) {
+  const [nome, setNome] = useState('');
+  const [emoji, setEmoji] = useState('📚');
+  const [livros, setLivros] = useState([]);
+
+  const emojisDisponiveis = ['📚', '💡', '🎯', '🧠', '🔥', '⭐', '📖', '📘', '📗', '📝', '🧳', '🌟', '🎵', '🧙', '🎮', '🏺'];
+
+  useEffect(() => {
+    fetch('/livros.json')
+      .then(res => res.json())
+      .then(setLivros)
+      .catch(err => console.error("Erro ao carregar livros.json:", err));
+  }, []);
+
+  function handleCriarEstante() {
+    if (!nome.trim()) return;
+    onCriar({ id: nome.toLowerCase().replace(/\s+/g, '-'), nome, emoji });
+    setNome('');
+    setEmoji('📚');
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovaEstante'));
+    modal.hide();
+  }
+
+  return (
+    <div className="modal fade" id="modalNovaEstante" tabIndex="-1" aria-hidden="true">
+      <div className="modal-dialog modal-dialog-centered">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">Nova Estante</h5>
+            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div className="modal-body">
+            <form>
+              <div className="mb-3">
+                <label htmlFor="nomeEstante" className="form-label">Nome da Estante</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  id="nomeEstante"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="emojiEstante" className="form-label">Emoji</label>
+                <select
+                  className="form-select"
+                  id="emojiEstante"
+                  value={emoji}
+                  onChange={(e) => setEmoji(e.target.value)}
+                >
+                  {emojisDisponiveis.map((emj, idx) => (
+                    <option key={idx} value={emj}>{emj}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="livroInicial" className="form-label">Livro Inicial</label>
+                <select className="form-select" id="livroInicial">
+                  <option value="">Selecione um livro</option>
+                  {livros.map((livro) => (
+                    <option key={livro.id} value={livro.id}>
+                      {livro.titulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </form>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button className="btn btn-primary" onClick={handleCriarEstante}>Criar Estante</button>
           </div>
         </div>
       </div>

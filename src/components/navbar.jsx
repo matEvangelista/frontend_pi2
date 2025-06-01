@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 export default function Navbar({ titulo }) {
   return (
     <nav className="navbar navbar-expand-md bg-body-tertiary navbar-custom">
-      <div className="container d-flex align-items-center justify-content-between w-50 me-auto">
+      <div className="container d-flex align-items-center justify-content-between me-auto w-md-100">
         {/* Botão de menu mobile */}
         <div className="d-flex align-items-center">
           <button

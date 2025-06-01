@@ -2,8 +2,8 @@ import { useParams } from 'react-router-dom';
 import { useState } from 'react';
 import livros from '../data/livros.json';
 import Navbar from './navbar';
-import './components.css';
 import Footer from './footer';
+import './components.css';
 
 export default function Livro() {
   const { id } = useParams();
@@ -13,6 +13,9 @@ export default function Livro() {
   const [novoComentario, setNovoComentario] = useState('');
   const [editandoId, setEditandoId] = useState(null);
   const [comentarioEditado, setComentarioEditado] = useState('');
+
+  const [favoritos, setFavoritos] = useState([]);
+  const [avaliacoes, setAvaliacoes] = useState({}); // { [id]: numero }
 
   if (!livro) {
     return (
@@ -52,22 +55,62 @@ export default function Livro() {
     setComentarios(comentarios.filter(c => c.id !== id));
   };
 
+  const alternarFavorito = () => {
+    if (favoritos.includes(livro.id)) {
+      setFavoritos(favoritos.filter(favId => favId !== livro.id));
+    } else {
+      setFavoritos([...favoritos, livro.id]);
+    }
+  };
+
+  const definirAvaliacao = (estrelas) => {
+    setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
+  };
+
+  const estrelas = [1, 2, 3, 4, 5];
+
   return (
     <>
       <Navbar titulo={"Minha Biblioteca"} />
       <div className='bg-body-tertiary'>
         <div className="container">
           <div className="row py-5 min-vh-100">
-            <div className="col-md-4 my-auto">
+            <div className="col-lg-4 my-auto">
               <img
                 src={livro.capa}
                 alt={livro.titulo}
                 className="img-fluid rounded"
               />
             </div>
-            <div className="col-md-8 book-details my-auto">
+            <div className="col-md-8 book-details my-5">
               <h2 className='mt-4'>{livro.titulo}</h2>
               <h4 className="text-muted">por {livro.autor}</h4>
+
+              {/* Botão de favorito */}
+              <button
+                className={`btn mt-3 ${favoritos.includes(livro.id) ? 'btn-danger' : 'btn-outline-danger'}`}
+                onClick={alternarFavorito}
+              >
+                {favoritos.includes(livro.id) ? 'Remover dos Favoritos ❤️' : 'Adicionar aos Favoritos 🤍'}
+              </button>
+
+              {/* Avaliação por estrelas */}
+              <div className="mt-3">
+                <h5 className="mb-2">Sua avaliação:</h5>
+                {estrelas.map(estrela => (
+                  <span
+                    key={estrela}
+                    onClick={() => definirAvaliacao(estrela)}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: '1.8rem',
+                      color: estrela <= (avaliacoes[livro.id] || 0) ? '#FFD700' : '#ccc'
+                    }}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
 
               <div className='mt-5 mb-2 p-3 sinopse-card'>
                 <h3>Sinopse</h3>
@@ -135,7 +178,7 @@ export default function Livro() {
           </div>
         </div>
       </div>
-      <Footer/>
+      <Footer />
     </>
   );
 }
