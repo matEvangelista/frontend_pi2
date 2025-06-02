@@ -9,10 +9,26 @@ export default function Sidebar() {
     setEstantes((prev) => [...prev, novaEstante]);
   }
 
+  function editarEstante(id, novoNome, novoEmoji) {
+    setEstantes((prev) =>
+      prev.map((estante) =>
+        estante.id === id ? { ...estante, nome: novoNome, emoji: novoEmoji } : estante
+      )
+    );
+  }
+
+  function excluirEstante(id) {
+    setEstantes((prev) => prev.filter((estante) => estante.id !== id));
+  }
+
   return (
     <>
       <div className="sidebar d-none d-md-block bg-light border-end">
-        <SidebarContent estantes={estantes} />
+        <SidebarContent
+          estantes={estantes}
+          onEditar={editarEstante}
+          onExcluir={excluirEstante}
+        />
       </div>
 
       <div className="offcanvas offcanvas-start d-md-none" tabIndex="-1" id="mobileSidebar">
@@ -21,18 +37,21 @@ export default function Sidebar() {
           <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
         </div>
         <div className="offcanvas-body">
-          <SidebarContent estantes={estantes} />
+          <SidebarContent
+            estantes={estantes}
+            onEditar={editarEstante}
+            onExcluir={excluirEstante}
+          />
         </div>
       </div>
 
-      {/* Modais */}
       <ModalAdicionarLivro />
       <ModalNovaEstante onCriar={adicionarEstante} />
     </>
   );
 }
 
-function SidebarContent({ estantes }) {
+function SidebarContent({ estantes, onEditar, onExcluir }) {
   return (
     <div className="p-3 d-flex flex-column h-100 justify-content-between">
       <ul className="nav flex-column">
@@ -58,13 +77,34 @@ function SidebarContent({ estantes }) {
         </li>
 
         <h6 className="text-uppercase text-muted px-2">Minhas Estantes</h6>
-        
 
         {estantes.map((estante, idx) => (
-          <li key={idx} className="nav-item mb-2">
-            <Link to={`/estante/${estante.id}`} className="nav-link text-dark">
+          <li key={idx} className="nav-item mb-2 d-flex align-items-center justify-content-between">
+            <Link to={`/estante/${estante.id}`} className="nav-link text-dark flex-grow-1">
               <span className="me-2">{estante.emoji}</span> {estante.nome}
             </Link>
+            <div className="btn-group btn-group-sm ms-2" role="group">
+              <button
+                className="btn btn-outline-secondary"
+                onClick={() => {
+                  const novoNome = prompt('Novo nome da estante:', estante.nome);
+                  if (novoNome) {
+                    const novoEmoji = prompt('Novo emoji da estante:', estante.emoji) || estante.emoji;
+                    onEditar(estante.id, novoNome, novoEmoji);
+                  }
+                }}
+                title="Editar estante"
+              >
+                <i className="bi bi-pencil"></i>
+              </button>
+              <button
+                className="btn btn-outline-danger"
+                onClick={() => onExcluir(estante.id)}
+                title="Excluir estante"
+              >
+                <i className="bi bi-trash"></i>
+              </button>
+            </div>
           </li>
         ))}
 
