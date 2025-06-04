@@ -14,6 +14,7 @@ import Navbar from './components/navbar';
 import Livros from './components/livros';
 import Descobrir from './components/descobrir';
 import LendoAgora from './components/lendoAgora';
+import Lidos from './components/Lidos';
 
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
               <Route path="/livros" element={<Livros />} />
               <Route path="/descobrir" element={<Descobrir />} />
               <Route path="/lendo-agora" element={<LendoAgora />} />
+              <Route path='/lidos' element={<Lidos/>} />
             </Routes>
           </div>
         </div>

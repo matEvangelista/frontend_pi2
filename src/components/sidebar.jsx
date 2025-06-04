@@ -78,11 +78,18 @@ function SidebarContent({ estantes, onEditar, onExcluir }) {
 
         <h6 className="text-uppercase text-muted px-2">Minhas Estantes</h6>
 
+        <li className="nav-item mb-4">
+          <Link to="/lidos" className="nav-link text-dark">
+            <i className="bi bi-check2-circle me-2"></i> Lidos
+          </Link>
+        </li>
+
         {estantes.map((estante, idx) => (
           <li key={idx} className="nav-item mb-2 d-flex align-items-center justify-content-between">
             <Link to={`/estante/${estante.id}`} className="nav-link text-dark flex-grow-1">
               <span className="me-2">{estante.emoji}</span> {estante.nome}
             </Link>
+            
             <div className="btn-group btn-group-sm ms-2" role="group">
               <button
                 className="btn btn-outline-secondary"
