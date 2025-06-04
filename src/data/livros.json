@@ -20,6 +20,7 @@
         "id": 3,
       "titulo": "O Senhor dos Anéis",
       "autor": "J.R.R. Tolkien",
+      "lendo": true,
       "capa": "https://m.media-amazon.com/images/I/71ZLavBjpRL._AC_UF1000,1000_QL80_.jpg",
       "descricao": "O Senhor dos Anéis (The Lord of the Rings, no original) é um livro de alta fantasia, escrito pelo escritor britânico J. R. R. Tolkien. Escrita entre 1937 e 1949, com muitas partes criadas durante a Segunda Guerra Mundial,[1] a saga é uma continuação de O Hobbit (1937). Embora Tolkien tenha planejado realizá-la em volume único, a obra foi originalmente publicada em três volumes (The Fellowship of the Ring, The Two Towers e The Return of the King) entre 1954 e 1955, com cada volume contendo dois livros cada, e foi assim, em três volumes, que se tornou popular. Desde então, a obra foi reimpressa várias vezes e traduzida para mais de 40 línguas, vendendo mais de 160 milhões de cópias,[2] tornando-se um dos trabalhos mais populares da literatura do século XX. "
     },
@@ -27,6 +28,7 @@
         "id": 4,
       "titulo": "Orgulho e Preconceito",
       "autor": "Jane Austen",
+      "lendo": true,
       "capa": "https://m.media-amazon.com/images/I/71Xta4Nf7uL._AC_UF1000,1000_QL80_.jpg",
       "descricao": "Pride and Prejudice (br/pt: Orgulho e Preconceito) é um romance da escritora britânica Jane Austen. Publicado pela primeira vez em 1813, na verdade havia sido terminado em 1797,[4] antes de ela completar 21 anos, em Steventon, Hampshire, onde Jane morava com os pais. Originalmente denominado First Impressions, nunca foi publicado sob aquele título; ao fazer a revisão dos escritos, Jane intitulou a obra e a publicou como Pride and Prejudice.[5] Austen pode ter tido em mente o capítulo final do romance de Fanny Burney, Cecilia, chamado \"Pride and Prejudice\""
     }

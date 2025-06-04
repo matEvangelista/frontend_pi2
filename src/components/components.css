@@ -2,6 +2,11 @@
     background-color: #F4F0E6 !important;
 }
 
+.bg-body-tertiary-2 {
+  background-color: #A67C52 !important;
+    color: white;
+}
+
 
 .botao {
     background-color: #A67C52 !important;

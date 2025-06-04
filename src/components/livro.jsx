@@ -7,15 +7,17 @@ import './components.css';
 
 export default function Livro() {
   const { id } = useParams();
-  const livro = livros.find(l => l.id === parseInt(id));
+  const livroOriginal = livros.find(l => l.id === parseInt(id));
 
+  const [livro, setLivro] = useState({ ...livroOriginal });
   const [comentarios, setComentarios] = useState([]);
   const [novoComentario, setNovoComentario] = useState('');
   const [editandoId, setEditandoId] = useState(null);
   const [comentarioEditado, setComentarioEditado] = useState('');
-
   const [favoritos, setFavoritos] = useState([]);
-  const [avaliacoes, setAvaliacoes] = useState({}); // { [id]: numero }
+  const [avaliacoes, setAvaliacoes] = useState({});
+
+  const [editandoLivro, setEditandoLivro] = useState(false);
 
   if (!livro) {
     return (
@@ -30,10 +32,7 @@ export default function Livro() {
 
   const adicionarComentario = () => {
     if (novoComentario.trim() === '') return;
-    const novo = {
-      id: Date.now(),
-      texto: novoComentario
-    };
+    const novo = { id: Date.now(), texto: novoComentario };
     setComentarios([...comentarios, novo]);
     setNovoComentario('');
   };
@@ -67,6 +66,15 @@ export default function Livro() {
     setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
   };
 
+  const alterarStatusLeitura = (status) => {
+    setLivro({ ...livro, lendo: status === 'lendo', lido: status === 'lido' });
+  };
+
+  const handleEditarLivroChange = (e) => {
+    const { name, value } = e.target;
+    setLivro({ ...livro, [name]: value });
+  };
+
   const estrelas = [1, 2, 3, 4, 5];
 
   return (
@@ -76,15 +84,27 @@ export default function Livro() {
         <div className="container">
           <div className="row py-5 min-vh-100">
             <div className="col-lg-4 my-auto">
-              <img
-                src={livro.capa}
-                alt={livro.titulo}
-                className="img-fluid rounded"
-              />
+              <img src={livro.capa} alt={livro.titulo} className="img-fluid rounded" />
             </div>
             <div className="col-md-8 book-details my-5">
               <h2 className='mt-4'>{livro.titulo}</h2>
               <h4 className="text-muted">por {livro.autor}</h4>
+
+              {/* Botões de status de leitura */}
+              <div className="mt-3">
+                <h5>Status de leitura:</h5>
+                <div className="btn-group" role="group">
+                  <button className={`btn ${livro.lendo ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => alterarStatusLeitura('lendo')}>
+                    📖 Lendo agora
+                  </button>
+                  <button className={`btn ${livro.lido ? 'btn-success' : 'btn-outline-success'}`} onClick={() => alterarStatusLeitura('lido')}>
+                    ✅ Já li
+                  </button>
+                  <button className={`btn ${!livro.lendo && !livro.lido ? 'btn-secondary' : 'btn-outline-secondary'}`} onClick={() => alterarStatusLeitura('nenhum')}>
+                    ❌ Ainda não li
+                  </button>
+                </div>
+              </div>
 
               {/* Botão de favorito */}
               <button
@@ -112,15 +132,45 @@ export default function Livro() {
                 ))}
               </div>
 
+              {/* Botão para editar livro */}
+              <div className="mt-4">
+                <button className="btn btn-outline-success" onClick={() => setEditandoLivro(!editandoLivro)}>
+                  {editandoLivro ? 'Fechar edição' : '✏️ Editar livro'}
+                </button>
+              </div>
+
+              {/* Formulário de edição */}
+              {editandoLivro && (
+                <div className="mt-3 border rounded p-3 bg-white bg-body-tertiary-2">
+                  <h5>Editar informações do livro:</h5>
+                  <div className="mb-2">
+                    <label className="form-label">Título</label>
+                    <input type="text" name="titulo" value={livro.titulo} onChange={handleEditarLivroChange} className="form-control" />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Autor</label>
+                    <input type="text" name="autor" value={livro.autor} onChange={handleEditarLivroChange} className="form-control" />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Descrição</label>
+                    <textarea name="descricao" value={livro.descricao} onChange={handleEditarLivroChange} className="form-control" rows="3" />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">URL da capa</label>
+                    <input type="text" name="capa" value={livro.capa} onChange={handleEditarLivroChange} className="form-control" />
+                  </div>
+                </div>
+              )}
+
+              {/* Sinopse */}
               <div className='mt-5 mb-2 p-3 sinopse-card'>
                 <h3>Sinopse</h3>
                 <p>{livro.descricao}</p>
               </div>
 
+              {/* Comentários */}
               <div className='mt-5 mb-2 p-3 sinopse-card'>
                 <h3>Comentários</h3>
-
-                {/* Caixa para novo comentário */}
                 <textarea
                   className="form-control"
                   rows="3"
@@ -132,7 +182,6 @@ export default function Livro() {
                   Enviar
                 </button>
 
-                {/* Lista de comentários */}
                 {comentarios.map((comentario) => (
                   <div key={comentario.id} className="mt-4 p-3 border rounded bg-light">
                     {editandoId === comentario.id ? (
@@ -144,30 +193,16 @@ export default function Livro() {
                           onChange={(e) => setComentarioEditado(e.target.value)}
                         ></textarea>
                         <div className="mt-2">
-                          <button className="btn btn-success btn-sm me-2" onClick={salvarEdicao}>
-                            Salvar
-                          </button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setEditandoId(null)}>
-                            Cancelar
-                          </button>
+                          <button className="btn btn-success btn-sm me-2" onClick={salvarEdicao}>Salvar</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setEditandoId(null)}>Cancelar</button>
                         </div>
                       </>
                     ) : (
                       <>
                         <p>{comentario.texto}</p>
                         <div>
-                          <button
-                            className="btn btn-outline-primary btn-sm me-2"
-                            onClick={() => iniciarEdicao(comentario.id, comentario.texto)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => excluirComentario(comentario.id)}
-                          >
-                            Excluir
-                          </button>
+                          <button className="btn btn-outline-primary btn-sm me-2" onClick={() => iniciarEdicao(comentario.id, comentario.texto)}>Editar</button>
+                          <button className="btn btn-outline-danger btn-sm" onClick={() => excluirComentario(comentario.id)}>Excluir</button>
                         </div>
                       </>
                     )}
