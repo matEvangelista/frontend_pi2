@@ -1,30 +1,70 @@
 import { useParams } from 'react-router-dom';
-import { useState } from 'react';
-import livros from '../data/livros.json';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 import Navbar from './navbar';
 import Footer from './footer';
 import './components.css';
+import bookPlaceholder from '../assets/book_placeholder.jpeg';
 
 export default function Livro() {
   const { id } = useParams();
-  const livroOriginal = livros.find(l => l.id === parseInt(id));
-
-  const [livro, setLivro] = useState({ ...livroOriginal });
+  const [livro, setLivro] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [comentarios, setComentarios] = useState([]);
   const [novoComentario, setNovoComentario] = useState('');
   const [editandoId, setEditandoId] = useState(null);
   const [comentarioEditado, setComentarioEditado] = useState('');
   const [favoritos, setFavoritos] = useState([]);
   const [avaliacoes, setAvaliacoes] = useState({});
-
   const [editandoLivro, setEditandoLivro] = useState(false);
 
-  if (!livro) {
+  useEffect(() => {
+    const fetchLivro = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`http://127.0.0.1:8000/livros/${id}/`);
+        setLivro(response.data);
+      } catch (err) {
+        console.error('Error fetching livro:', err);
+        setError(err.message || 'Erro desconhecido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchLivro();
+    }
+  }, [id]);
+
+  if (loading) {
     return (
       <>
         <Navbar titulo={"Minha Biblioteca"} />
         <div className="container mt-5">
-          <h2 className="text-danger">Livro não encontrado</h2>
+          <div className="text-center">
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Carregando...</span>
+            </div>
+            <p className="mt-2">Carregando livro...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (error || !livro) {
+    return (
+      <>
+        <Navbar titulo={"Minha Biblioteca"} />
+        <div className="container mt-5">
+          <div className="alert alert-danger" role="alert">
+            <h4 className="alert-heading">Erro ao carregar livro!</h4>
+            <p>{error || 'Livro não encontrado'}</p>
+            <hr />
+            <p className="mb-0">Verifique se o servidor da API está rodando</p>
+          </div>
         </div>
       </>
     );
@@ -84,7 +124,14 @@ export default function Livro() {
         <div className="container">
           <div className="row py-5 min-vh-100">
             <div className="col-lg-4 my-auto">
-              <img src={livro.capa} alt={livro.titulo} className="img-fluid rounded" />
+              <img 
+                src={livro.url_img || bookPlaceholder} 
+                alt={livro.titulo} 
+                className="img-fluid rounded"
+                onError={(e) => {
+                  e.target.src = bookPlaceholder;
+                }}
+              />
             </div>
             <div className="col-md-8 book-details my-5">
               <h2 className='mt-4'>{livro.titulo}</h2>
@@ -153,11 +200,11 @@ export default function Livro() {
                   </div>
                   <div className="mb-2">
                     <label className="form-label">Descrição</label>
-                    <textarea name="descricao" value={livro.descricao} onChange={handleEditarLivroChange} className="form-control" rows="3" />
+                    <textarea name="descricao" value={livro.descricao || ''} onChange={handleEditarLivroChange} className="form-control" rows="3" />
                   </div>
                   <div className="mb-2">
-                    <label className="form-label">URL da capa</label>
-                    <input type="text" name="capa" value={livro.capa} onChange={handleEditarLivroChange} className="form-control" />
+                    <label className="form-label">URL da imagem</label>
+                    <input type="text" name="url_img" value={livro.url_img || ''} onChange={handleEditarLivroChange} className="form-control" />
                   </div>
                 </div>
               )}
@@ -165,7 +212,7 @@ export default function Livro() {
               {/* Sinopse */}
               <div className='mt-5 mb-2 p-3 sinopse-card'>
                 <h3>Sinopse</h3>
-                <p>{livro.descricao}</p>
+                <p>{livro.descricao || 'Sinopse não disponível'}</p>
               </div>
 
               {/* Comentários */}
