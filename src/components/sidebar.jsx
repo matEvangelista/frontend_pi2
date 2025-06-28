@@ -169,8 +169,6 @@ function ModalAdicionarLivro() {
     if (file) {
       const url = URL.createObjectURL(file);
       setPreview(url);
-      // For now, we'll just store the file URL as url_img
-      // In a real application, you'd upload the file to a server
       setFormData(prev => ({
         ...prev,
         url_img: url
@@ -185,7 +183,6 @@ function ModalAdicionarLivro() {
   }
 
   async function handleAdicionarClick() {
-    // Validate required fields
     if (!formData.titulo.trim() || !formData.autor_nome.trim() || !formData.categorias.trim()) {
       setError('Título, autor e categoria são obrigatórios');
       return;
@@ -218,7 +215,7 @@ function ModalAdicionarLivro() {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
           },
-          withCredentials: false, // Disable credentials for CORS
+          withCredentials: false,
       });
       const response = await apiClient.post('/livros/', livroData);   
       setSuccess(`Livro "${formData.titulo}" criado com sucesso!`);
