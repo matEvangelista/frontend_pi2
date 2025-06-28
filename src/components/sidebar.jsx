@@ -1,6 +1,7 @@
 import './components.css';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function Sidebar() {
   const [estantes, setEstantes] = useState([]);
@@ -142,15 +143,104 @@ function SidebarContent({ estantes, onEditar, onExcluir }) {
 }
 
 function ModalAdicionarLivro() {
+  const [formData, setFormData] = useState({
+    titulo: '',
+    autor_nome: '',
+    categorias: '',
+    url_img: '',
+    descricao: '',
+    ano_publicacao: ''
+  });
   const [preview, setPreview] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  function handleInputChange(e) {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
 
   function handleImagemChange(e) {
     const file = e.target.files[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setPreview(url);
+      setFormData(prev => ({
+        ...prev,
+        url_img: url
+      }));
     } else {
       setPreview(null);
+      setFormData(prev => ({
+        ...prev,
+        url_img: ''
+      }));
+    }
+  }
+
+  async function handleAdicionarClick() {
+    if (!formData.titulo.trim() || !formData.autor_nome.trim() || !formData.categorias.trim()) {
+      setError('Título, autor e categoria são obrigatórios');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const livroData = {
+        titulo: formData.titulo.trim(),
+        autor_nome: formData.autor_nome.trim(),
+        categorias: formData.categorias.trim() ? formData.categorias.split(',').map(cat => cat.trim()) : []
+      };
+      if (formData.descricao && formData.descricao.trim()) {
+        livroData.descricao = formData.descricao.trim();
+      }   
+      if (formData.ano_publicacao && formData.ano_publicacao.trim()) {
+        livroData.ano_publicacao = parseInt(formData.ano_publicacao);
+      }
+      if (formData.url_img && formData.url_img.trim()) {
+        livroData.url_img = formData.url_img.trim();
+      }
+
+      const API_BASE_URL = 'http://127.0.0.1:8000';
+      const apiClient = axios.create({
+          baseURL: API_BASE_URL,
+          headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+          },
+          withCredentials: false,
+      });
+      const response = await apiClient.post('/livros/', livroData);   
+      setSuccess(`Livro "${formData.titulo}" criado com sucesso!`);
+
+      setFormData({
+        titulo: '',
+        autor_nome: '',
+        categorias: '',
+        url_img: '',
+        descricao: '',
+        ano_publicacao: ''
+      });
+      setPreview(null);
+
+      setTimeout(() => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalAdicionarLivro'));
+        modal.hide();
+        setSuccess('');
+        window.location.reload();
+      }, 1500);
+
+    } catch (err) {
+      console.error('Erro ao criar livro:', err);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -163,33 +253,126 @@ function ModalAdicionarLivro() {
             <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
           </div>
           <div className="modal-body">
-            <form>
-              <div className="mb-3">
-                <label htmlFor="tituloLivro" className="form-label">Título</label>
-                <input type="text" className="form-control" id="tituloLivro" />
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
               </div>
-              <div className="mb-3">
-                <label htmlFor="autorLivro" className="form-label">Autor</label>
-                <input type="text" className="form-control" id="autorLivro" />
+            )}
+            
+            {success && (
+              <div className="alert alert-success" role="alert">
+                {success}
               </div>
-              <div className="mb-3">
-                <label htmlFor="categoriaLivro" className="form-label">Categoria</label>
-                <input type="text" className="form-control" id="categoriaLivro" />
+            )}
+            
+            <div className="mb-3">
+              <label htmlFor="tituloLivro" className="form-label">Título *</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                id="tituloLivro"
+                name="titulo"
+                value={formData.titulo}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="mb-3">
+              <label htmlFor="autorLivro" className="form-label">Autor *</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                id="autorLivro"
+                name="autor_nome"
+                value={formData.autor_nome}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="mb-3">
+              <label htmlFor="categoriaLivro" className="form-label">Categorias *</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                id="categoriaLivro"
+                name="categorias"
+                value={formData.categorias}
+                onChange={handleInputChange}
+                placeholder="Ex: Ficção, Romance, Aventura"
+              />
+              <div className="form-text">Separe múltiplas categorias por vírgula</div>
+            </div>
+            
+            <div className="mb-3">
+              <label htmlFor="anoPublicacao" className="form-label">Ano de Publicação</label>
+              <input 
+                type="number" 
+                className="form-control" 
+                id="anoPublicacao"
+                name="ano_publicacao"
+                value={formData.ano_publicacao}
+                onChange={handleInputChange}
+                min="1000"
+                max="2024"
+              />
+            </div>
+            
+            <div className="mb-3">
+              <label htmlFor="descricaoLivro" className="form-label">Descrição</label>
+              <textarea 
+                className="form-control" 
+                id="descricaoLivro"
+                name="descricao"
+                value={formData.descricao}
+                onChange={handleInputChange}
+                rows="3"
+                placeholder="Breve descrição do livro..."
+              />
+            </div>
+            
+            <div className="mb-3">
+              <label htmlFor="imagemLivro" className="form-label">Imagem da Capa</label>
+              <input 
+                type="file" 
+                className="form-control" 
+                id="imagemLivro" 
+                accept="image/*" 
+                onChange={handleImagemChange} 
+              />
+            </div>
+            
+            {preview && (
+              <div className="text-center mb-3">
+                <img src={preview} alt="Prévia" className="img-fluid rounded" style={{ maxHeight: '200px' }} />
               </div>
-              <div className="mb-3">
-                <label htmlFor="imagemLivro" className="form-label">Imagem da Capa</label>
-                <input type="file" className="form-control" id="imagemLivro" accept="image/*" onChange={handleImagemChange} />
-              </div>
-              {preview && (
-                <div className="text-center mb-3">
-                  <img src={preview} alt="Prévia" className="img-fluid rounded" style={{ maxHeight: '200px' }} />
-                </div>
-              )}
-            </form>
+            )}
           </div>
           <div className="modal-footer">
-            <button className="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button className="btn btn-primary">Adicionar</button>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              data-bs-dismiss="modal"
+              disabled={isLoading}
+            >
+              Cancelar
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary"
+              onClick={handleAdicionarClick}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Adicionando...
+                </>
+              ) : (
+                'Adicionar'
+              )}
+            </button>
           </div>
         </div>
       </div>
