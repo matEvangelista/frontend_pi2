@@ -139,3 +139,14 @@
     }
   }
   
+.fade-anim {
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+.fade-anim.hide {
+  opacity: 0;
+}
+.fade-anim.show {
+  opacity: 1;
+}
+  
