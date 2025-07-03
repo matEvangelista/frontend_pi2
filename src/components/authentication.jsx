@@ -21,7 +21,7 @@ export default function Authentication() {
                 senha: password
             });
             // Optionally store token: localStorage.setItem('token', response.data.access_token);
-            login(email);
+            login(email, response.data.user_id);
             navigate('/');
         } catch (err) {
             if (err.response && err.response.data && err.response.data.detail) {

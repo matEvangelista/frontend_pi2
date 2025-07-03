@@ -2,17 +2,19 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import bookPlaceholder from '../assets/book_placeholder.jpeg';
+import { useAuth } from '../context/AuthContext';
 
 export default function Livros() {
   const [livros, setLivros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const fetchLivros = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://127.0.0.1:8000/livros/todos/');
+        const response = await axios.get(`http://127.0.0.1:8000/usuarios/${user.id}/livros/registrados`);
         setLivros(response.data);
       } catch (err) {
         console.error('Error fetching livros:', err);
