@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const login = (email) => setUser({ email });
+  const login = (email, user_id) => setUser({ email, id: user_id });
   const logout = () => setUser(null);
 
   return (

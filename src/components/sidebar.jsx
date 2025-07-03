@@ -2,6 +2,7 @@ import './components.css';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar() {
   const [estantes, setEstantes] = useState([]);
@@ -155,6 +156,7 @@ function ModalAdicionarLivro() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { user, logout } = useAuth();
 
   function handleInputChange(e) {
     const { name, value } = e.target;
@@ -171,7 +173,7 @@ function ModalAdicionarLivro() {
       setPreview(url);
       setFormData(prev => ({
         ...prev,
-        url_img: url
+        url_img: file
       }));
     } else {
       setPreview(null);
@@ -193,6 +195,21 @@ function ModalAdicionarLivro() {
     setSuccess('');
 
     try {
+      let url_img_final = '';
+      if (preview && formData.url_img && typeof formData.url_img !== 'string') {
+        const file = document.getElementById('imagemLivro').files[0];
+        if (file) {
+          const uploadData = new FormData();
+          uploadData.append('file', file);
+          const uploadResp = await axios.post('http://127.0.0.1:8000/upload/imagem_livro/', uploadData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          url_img_final = `http://127.0.0.1:8000${uploadResp.data.url_img}`;
+        }
+      } else if (formData.url_img && typeof formData.url_img === 'string') {
+        url_img_final = formData.url_img;
+      }
+
       const livroData = {
         titulo: formData.titulo.trim(),
         autor_nome: formData.autor_nome.trim(),
@@ -204,10 +221,11 @@ function ModalAdicionarLivro() {
       if (formData.ano_publicacao && formData.ano_publicacao.trim()) {
         livroData.ano_publicacao = parseInt(formData.ano_publicacao);
       }
-      if (formData.url_img && formData.url_img.trim()) {
-        livroData.url_img = formData.url_img.trim();
+      if (url_img_final) {
+        livroData.url_img = url_img_final;
       }
 
+      const user_id = user.id
       const API_BASE_URL = 'http://127.0.0.1:8000';
       const apiClient = axios.create({
           baseURL: API_BASE_URL,
@@ -217,7 +235,7 @@ function ModalAdicionarLivro() {
           },
           withCredentials: false,
       });
-      const response = await apiClient.post('/livros/', livroData);   
+      const response = await apiClient.post(`/usuarios/${user_id}/livros/`, livroData);   
       setSuccess(`Livro "${formData.titulo}" criado com sucesso!`);
 
       setFormData({
@@ -239,6 +257,7 @@ function ModalAdicionarLivro() {
 
     } catch (err) {
       console.error('Erro ao criar livro:', err);
+      setError('Erro ao criar livro.');
     } finally {
       setIsLoading(false);
     }
