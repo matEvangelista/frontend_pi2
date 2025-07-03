@@ -1,8 +1,15 @@
 // components/navbar.js (atualizado)
 import './components.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar({ titulo }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
   return (
     <nav className="navbar navbar-expand-md bg-body-tertiary navbar-custom">
       <div className="container d-flex align-items-center justify-content-between me-auto w-md-100">
@@ -38,6 +45,15 @@ export default function Navbar({ titulo }) {
             </form>
           </div>
         </div>
+        {/* User info and logout */}
+        {user && (
+          <div className="d-flex align-items-center ms-3">
+            <span className="me-2">{user.email}</span>
+            <button className="btn btn-outline-secondary btn-sm" onClick={handleLogout}>
+              Sair
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );
