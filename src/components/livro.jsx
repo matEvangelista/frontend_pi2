@@ -5,6 +5,7 @@ import Navbar from './navbar';
 import Footer from './footer';
 import './components.css';
 import bookPlaceholder from '../assets/book_placeholder.jpeg';
+import { useAuth } from '../context/AuthContext';
 
 export default function Livro() {
   const { id } = useParams();
@@ -18,6 +19,36 @@ export default function Livro() {
   const [favoritos, setFavoritos] = useState([]);
   const [avaliacoes, setAvaliacoes] = useState({});
   const [editandoLivro, setEditandoLivro] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const { user, logout } = useAuth();
+
+  const fetchUserRating = async (userId, livroId) => {
+    try {
+      const API_BASE_URL = 'http://127.0.0.1:8000';
+      const apiClient = axios.create({
+        baseURL: API_BASE_URL,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        withCredentials: false,
+      });
+      
+      const response = await apiClient.get(`/usuarios/${userId}/livros/${livroId}/avaliacao/`);
+      const userRating = response.data.nota;
+      setAvaliacoes(prev => ({ ...prev, [livroId]: userRating }));
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        setAvaliacoes(prev => ({ ...prev, [livroId]: 0 }));
+      } else {
+        console.error('Error fetching user rating:', err);
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchLivro = async () => {
@@ -25,6 +56,10 @@ export default function Livro() {
         setLoading(true);
         const response = await axios.get(`http://127.0.0.1:8000/livros/${id}/`);
         setLivro(response.data);
+        
+        if (user && user.id) {
+          await fetchUserRating(user.id, response.data.id);
+        }
       } catch (err) {
         console.error('Error fetching livro:', err);
         setError(err.message || 'Erro desconhecido');
@@ -36,7 +71,23 @@ export default function Livro() {
     if (id) {
       fetchLivro();
     }
-  }, [id]);
+  }, [id, user]);
+
+  useEffect(() => {
+    if (success) {
+      setShowSuccess(true);
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 9000);
+      const clearTimer = setTimeout(() => {
+        setSuccess('');
+      }, 10000);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [success]);
 
   if (loading) {
     return (
@@ -102,20 +153,119 @@ export default function Livro() {
     }
   };
 
-  const definirAvaliacao = (estrelas) => {
-    setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
+  async function definirAvaliacao(estrelas) {
+    try {
+      const avaliacao = {
+        nota: estrelas,
+        comentario: "Ótimo livro!"
+      };  
+
+      const API_BASE_URL = 'http://127.0.0.1:8000';
+      const apiClient = axios.create({
+          baseURL: API_BASE_URL,
+          headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+          },
+          withCredentials: false,
+      });
+
+      const user_id = user.id
+      const livro_id = livro.id.toString();
+      const response = await apiClient.post(`/usuarios/${user_id}/livros/${livro_id}/avaliar/`, avaliacao);   
+      setSuccess(`Livro "${livro.titulo}" avaliado com sucesso!`);
+      setAvaliacoes(prev => ({ ...prev, [livro.id]: estrelas }));
+    } catch (err) {
+      console.error('Erro ao avaliar livro:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const alterarStatusLeitura = (status) => {
     setLivro({ ...livro, lendo: status === 'lendo', lido: status === 'lido' });
   };
 
-  const handleEditarLivroChange = (e) => {
-    const { name, value } = e.target;
-    setLivro({ ...livro, [name]: value });
-  };
-
   const estrelas = [1, 2, 3, 4, 5];
+
+  function handleImagemChange(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+      setSelectedImage(file);
+    } else {
+      setPreview(null);
+      setSelectedImage(null);
+    }
+  }
+
+  async function handleEditarLivroChange() {
+    if (!livro.titulo.trim() || !livro.autor.trim()) {
+      setError('Título e autor são obrigatórios');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      let url_img_final = '';
+      const oldImageUrl = livro.url_img;
+
+      // Fazendo o upload da nova imagem de capa, se for adicionada uma
+      if (selectedImage && selectedImage instanceof File) {
+        const uploadData = new FormData();
+        uploadData.append('file', selectedImage);
+        const uploadResp = await axios.post('http://127.0.0.1:8000/upload/imagem_livro/', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        url_img_final = `http://127.0.0.1:8000${uploadResp.data.url_img}`;
+        
+        // Deletar a imagem antiga, se não for a placeholder
+        if (oldImageUrl && oldImageUrl !== bookPlaceholder && !oldImageUrl.includes('book_placeholder')) {
+          await axios.delete(`http://127.0.0.1:8000/upload/imagem_livro/?url_img=${encodeURIComponent(oldImageUrl)}`);
+        }
+      } else if (livro.url_img && typeof livro.url_img === 'string') {
+        url_img_final = livro.url_img;
+      }
+
+      const livroData = {
+        titulo: livro.titulo.trim(),
+        autor_nome: livro.autor.trim(),
+        descricao: livro.descricao.trim()
+      };
+
+      if (url_img_final) {
+        livroData.url_img = url_img_final;
+      }
+
+      const API_BASE_URL = 'http://127.0.0.1:8000';
+      const apiClient = axios.create({
+          baseURL: API_BASE_URL,
+          headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+          },
+          withCredentials: false,
+      });
+      const response = await apiClient.put(`/livros/${livro.id}/`, livroData);   
+      setSuccess(`Livro "${livro.titulo}" editado com sucesso!`);
+      
+      if (url_img_final) {
+        setLivro(prev => ({ ...prev, url_img: url_img_final }));
+      }
+
+      setPreview(null);
+      setSelectedImage(null);
+    } catch (err) {
+      console.error('Erro ao editar livro:', err);
+      setError('Erro ao editar livro.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <>
@@ -164,24 +314,32 @@ export default function Livro() {
               {/* Avaliação por estrelas */}
               <div className="mt-3">
                 <h5 className="mb-2">Sua avaliação:</h5>
-                {estrelas.map(estrela => (
-                  <span
-                    key={estrela}
-                    onClick={() => definirAvaliacao(estrela)}
-                    style={{
-                      cursor: 'pointer',
-                      fontSize: '1.8rem',
-                      color: estrela <= (avaliacoes[livro.id] || 0) ? '#FFD700' : '#ccc'
-                    }}
-                  >
-                    ★
-                  </span>
-                ))}
+                  {estrelas.map(estrela => (
+                    <span
+                      key={estrela}
+                      onClick={() => definirAvaliacao(estrela)}
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: '1.8rem',
+                        color: estrela <= (avaliacoes[livro.id] || 0) ? '#FFD700' : '#ccc'
+                      }}
+                    >
+                      ★
+                    </span>
+                  ))}
               </div>
 
               {/* Botão para editar livro */}
               <div className="mt-4">
-                <button className="btn btn-outline-success" onClick={() => setEditandoLivro(!editandoLivro)}>
+                <button className="btn btn-outline-secondary" onClick={() => {
+                  setEditandoLivro(!editandoLivro);
+                  if (editandoLivro) {
+                    // Reset form when closing
+                    setPreview(null);
+                    setSelectedImage(null);
+                    setError('');
+                  }
+                }}>
                   {editandoLivro ? 'Fechar edição' : '✏️ Editar livro'}
                 </button>
               </div>
@@ -192,22 +350,56 @@ export default function Livro() {
                   <h5>Editar informações do livro:</h5>
                   <div className="mb-2">
                     <label className="form-label">Título</label>
-                    <input type="text" name="titulo" value={livro.titulo} onChange={handleEditarLivroChange} className="form-control" />
+                    <input type="text" name="titulo" value={livro.titulo} className="form-control" onChange={e => setLivro({ ...livro, titulo: e.target.value })} />
                   </div>
                   <div className="mb-2">
                     <label className="form-label">Autor</label>
-                    <input type="text" name="autor" value={livro.autor} onChange={handleEditarLivroChange} className="form-control" />
+                    <input type="text" name="autor" value={livro.autor} className="form-control" onChange={e => setLivro({ ...livro, autor: e.target.value })} />
                   </div>
                   <div className="mb-2">
                     <label className="form-label">Descrição</label>
-                    <textarea name="descricao" value={livro.descricao || ''} onChange={handleEditarLivroChange} className="form-control" rows="3" />
+                    <textarea name="descricao" value={livro.descricao || ''} className="form-control" rows="3" onChange={e => setLivro({ ...livro, descricao: e.target.value })} />
                   </div>
                   <div className="mb-2">
-                    <label className="form-label">URL da imagem</label>
-                    <input type="text" name="url_img" value={livro.url_img || ''} onChange={handleEditarLivroChange} className="form-control" />
+                    <label className="form-label">Imagem da Capa</label>
+                    <input 
+                      type="file" 
+                      className="form-control" 
+                      id="imagemLivro" 
+                      accept="image/*" 
+                      onChange={handleImagemChange}
+                    />
                   </div>
-                </div>
-              )}
+                  
+                  {preview && (
+                    <div className="text-center mb-3">
+                      <img src={preview} alt="Prévia" className="img-fluid rounded" style={{ maxHeight: '200px' }} />
+                    </div>
+                  )}
+                    <div>
+                       <button className="btn btn-success" onClick={handleEditarLivroChange} disabled={isLoading}>
+                        Salvar edição
+                      </button>
+                      {isLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Adicionando...
+                        </>
+                      ) : <></>}
+                      {error && (
+                        <div className={`alert alert-danger fade-anim${showSuccess ? ' show' : ' hide'} mt-3`} role="alert">
+                          {error}
+                        </div>
+                      )}
+                      
+                      {success && (
+                        <div className={`alert alert-success fade-anim${showSuccess ? ' show' : ' hide'} mt-3`} role="alert">
+                          {success}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
               {/* Sinopse */}
               <div className='mt-5 mb-2 p-3 sinopse-card'>
