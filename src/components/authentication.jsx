@@ -1,4 +1,4 @@
-import './components.css'
+import './components.css';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -10,20 +10,33 @@ export default function Authentication() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login } = useAuth(); // Lógica de login do contexto
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         try {
+            // Enviar a requisição para o servidor
             const response = await axios.post('http://127.0.0.1:8000/auth/login', {
                 email,
                 senha: password
             });
-            // Optionally store token: localStorage.setItem('token', response.data.access_token);
+            
+            // Pega o ID do usuário da resposta da API (supondo que ele esteja em response.data.user.id)
+
+            // Armazenando o user.id no localStorage
+            localStorage.setItem('userId', response.data.user_id);
+
+            // Opcional: Armazenando o token no localStorage (se necessário)
+            // localStorage.setItem('token', response.data.access_token);
+            
+            // Chama o login do contexto (armazenando o email no contexto)
             login(email);
+
+            // Navega para a página inicial
             navigate('/');
         } catch (err) {
+            // Trata erros de conexão e exibe a mensagem correspondente
             if (err.response && err.response.data && err.response.data.detail) {
                 setError(err.response.data.detail);
             } else {
@@ -38,7 +51,15 @@ export default function Authentication() {
                 <h2 className="mb-4 text-center">Login</h2>
                 <div className="mb-3">
                     <label htmlFor="email" className="form-label">Email</label>
-                    <input type="email" className="form-control" id="email" placeholder="Digite seu email" required value={email} onChange={e => setEmail(e.target.value)} />
+                    <input 
+                        type="email" 
+                        className="form-control" 
+                        id="email" 
+                        placeholder="Digite seu email" 
+                        required 
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)} 
+                    />
                 </div>
                 <div className="mb-3">
                     <label htmlFor="password" className="form-label">Senha</label>
