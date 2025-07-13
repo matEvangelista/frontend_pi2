@@ -217,7 +217,8 @@ function ModalAdicionarLivro() {
           },
           withCredentials: false,
       });
-      const response = await apiClient.post('/livros/', livroData);   
+      const  user_id  = localStorage.getItem('userId');
+      const response = await apiClient.post(`/usuarios/${user_id}/livros/`, livroData);   
       setSuccess(`Livro "${formData.titulo}" criado com sucesso!`);
 
       setFormData({

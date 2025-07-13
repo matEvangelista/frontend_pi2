@@ -12,7 +12,8 @@ export default function Livros() {
     const fetchLivros = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://127.0.0.1:8000/livros/todos/');
+        const  user_id  = localStorage.getItem('userId');
+        const response = await axios.get(`http://127.0.0.1:8000/usuarios/${user_id}/livros/registrados`);
         setLivros(response.data);
       } catch (err) {
         console.error('Error fetching livros:', err);
