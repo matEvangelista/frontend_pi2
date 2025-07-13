@@ -35,56 +35,88 @@ export default function Livro() {
   const [estantes, setEstantes] = useState([]);
   const [loadingEstantes, setLoadingEstantes] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
+  const [livroNaEstante, setLivroNaEstante] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!livroId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const livroResponse = await apiClient.get(`/livros/${livroId}/`);
-        const livroData = livroResponse.data;
-        const userId = localStorage.getItem('userId');
-        let interactionStatus = { lendo: false, lido: false };
-        if (userId) {
-          try {
-            const interactionResponse = await apiClient.get(`/usuarios/${userId}/livros/${livroId}/interacao`);
-            const status = interactionResponse.data?.status;
-            if (status) {
-              interactionStatus = { lendo: status === 'LENDO', lido: status === 'LIDO' };
-            }
-          } catch (interactionError) {
-            if (interactionError.response?.status !== 404) {
-              console.error('Erro ao buscar status de interação:', interactionError);
-            }
+  const fetchData = async () => {
+    if (!livroId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const livroResponse = await apiClient.get(`/livros/${livroId}/`);
+      const livroData = livroResponse.data;
+      const userId = localStorage.getItem('userId');
+      let interactionStatus = { lendo: false, lido: false };
+      if (userId) {
+        try {
+          const interactionResponse = await apiClient.get(`/usuarios/${userId}/livros/${livroId}/interacao`);
+          const status = interactionResponse.data?.status;
+          if (status) {
+            interactionStatus = { lendo: status === 'LENDO', lido: status === 'LIDO' };
+          }
+        } catch (interactionError) {
+          if (interactionError.response?.status !== 404) {
+            console.error('Erro ao buscar status de interação:', interactionError);
           }
         }
-        setLivro({ ...livroData, ...interactionStatus });
-        fetchEstantes();
-      } catch (err) {
-        console.error('Error fetching livro:', err);
-        setError(err.message || 'Erro desconhecido');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchEstantes = async () => {
-        const userId = localStorage.getItem('userId');
-        if (!userId) return;
-        setLoadingEstantes(true);
         try {
-            const response = await apiClient.get(`/usuarios/${userId}/colecoes/`);
-            setEstantes(response.data || []);
-        } catch (err) {
-            console.error("Erro ao buscar estantes:", err);
-        } finally {
-            setLoadingEstantes(false);
+          const favoritosResponse = await apiClient.get(`/usuarios/${userId}/favoritos`);
+          const isFav = favoritosResponse.data.some(fav => fav.id === parseInt(livroId));
+          setFavoritos(isFav ? [livroId] : []); // Set favoritos as an array containing the bookId if it's a favorite
+        } catch (favoritosError) {
+          if (favoritosError.response?.status !== 404) console.error('Erro ao buscar favoritos:', favoritosError);
         }
-    };
+
+        // Verifica se o livro já está em uma estante
+        const estantesResponse = await apiClient.get(`/usuarios/${userId}/colecoes/`);
+        setEstantes(estantesResponse.data || []);
+        const estanteComLivro = estantesResponse.data.find(estante => estante.livros.some(livro => livro.id === parseInt(livroId)));
+        
+        setLivroNaEstante(estanteComLivro ? estanteComLivro.id : null);
+      }
+
+      setLivro({ ...livroData, ...interactionStatus });
+    } catch (err) {
+      console.error('Error fetching livro:', err);
+      setError(err.message || 'Erro desconhecido');
+    } finally {
+      setLoading(false);
+    }
+  };
 
     fetchData();
   }, [livroId]);
+  
+const alternarFavorito = async () => {
+  const userId = localStorage.getItem('userId');
+  if (!userId) {
+    setFeedback({ message: 'Você precisa estar logado para favoritar livros.', type: 'warning' });
+    setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+    return;
+  }
+
+  setFeedback({ message: '', type: '' });
+  const endpoint = `/usuarios/${userId}/livros/${livroId}/favoritar`;
+
+  try {
+    if (favoritos.includes(livroId)) {
+      // Se já é favorito, envia requisição DELETE para desfavoritar
+      await apiClient.delete(endpoint);
+      setFavoritos((prevFavoritos) => prevFavoritos.filter(favId => favId !== livroId)); // Atualiza favoritado
+      setFeedback({ message: 'Livro removido dos favoritos.', type: 'info' });
+    } else {
+      // Se não é favorito, envia requisição POST para favoritar
+      await apiClient.post(endpoint);
+      setFavoritos((prevFavoritos) => [...prevFavoritos, livroId]); // Atualiza favoritado
+      setFeedback({ message: 'Livro adicionado aos favoritos!', type: 'success' });
+    }
+  } catch (err) {
+    console.error("Erro ao alterar status de favorito:", err);
+    setFeedback({ message: 'Falha ao atualizar favoritos. Tente novamente.', type: 'danger' });
+  } finally {
+    setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+  }
+};
   
   // --- Funções de Interação com API ---
 
@@ -123,19 +155,82 @@ export default function Livro() {
         setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
     }
   };
+/*
+  const fetchEstantes = async () => {
+  const userId = localStorage.getItem('userId');
+  if (!userId) return;
+  setLoadingEstantes(true);
+  try {
+    const response = await apiClient.get(`/usuarios/${userId}/colecoes/`);
+    const estantesData = response.data || [];
+    setEstantes(estantesData);
+
+    // Verificar se o livro já está em alguma estante
+    const livroNaEstante = estantesData.find(estante =>
+      estante.livros.some(livroEstante => livroEstante.id === livroId)
+    );
+    if (livroNaEstante) {
+      setLivroNaEstante(livroNaEstante); // Armazene a estante onde o livro já está
+    }
+  } catch (err) {
+    console.error("Erro ao buscar estantes:", err);
+  } finally {
+    setLoadingEstantes(false);
+  }
+};
+*/
 
   const adicionarLivroNaEstante = async (colecaoId) => {
-    setFeedback({ message: '', type: '' });
-    try {
-        await apiClient.post(`/colecoes/${colecaoId}/livros/${livroId}`);
-        setFeedback({ message: `Livro adicionado à estante com sucesso!`, type: 'success' });
-    } catch (err) {
-        console.error("Erro ao adicionar livro na estante:", err);
-        setFeedback({ message: 'Falha ao adicionar o livro. Tente novamente.', type: 'danger' });
-    } finally {
-        setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
-    }
-  };
+  setFeedback({ message: '', type: '' });
+  try {
+    await apiClient.post(`/colecoes/${colecaoId}/livros/${livroId}`);
+    setFeedback({ message: `Livro adicionado à estante com sucesso!`, type: 'success' });
+    setLivroNaEstante(colecaoId); // Atualiza o estado para mostrar que o livro foi adicionado
+  } catch (err) {
+    console.error("Erro ao adicionar livro na estante:", err);
+    setFeedback({ message: 'Falha ao adicionar o livro. Tente novamente.', type: 'danger' });
+  } finally {
+    setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+  }
+};
+
+// Função para remover o livro de uma estante
+const removerDaEstante = async () => {
+  if (!livroNaEstante) {
+    setFeedback({ message: 'Este livro não está em nenhuma estante.', type: 'warning' });
+    return;
+  }
+
+  setFeedback({ message: '', type: '' });
+  try {
+    await apiClient.delete(`/colecoes/${livroNaEstante}/livros/${livroId}`);
+    setFeedback({ message: 'Livro removido da estante com sucesso!', type: 'success' });
+    setLivroNaEstante(null); // Atualiza o estado
+  } catch (err) {
+    console.error("Erro ao remover livro da estante:", err);
+    setFeedback({ message: 'Falha ao remover o livro. Tente novamente.', type: 'danger' });
+  } finally {
+    setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+  }
+};
+
+// Mudar livro para outra estante
+const mudarDeEstante = async (novaEstanteId) => {
+  setFeedback({ message: '', type: '' });
+  try {
+    // Primeiro remove o livro da estante atual
+    await apiClient.delete(`/colecoes/${livroNaEstante}/livros/${livroId}`);
+    // Depois adiciona na nova estante
+    await apiClient.post(`/colecoes/${novaEstanteId}/livros/${livroId}`);
+    setFeedback({ message: 'Livro movido para outra estante com sucesso!', type: 'success' });
+    setLivroNaEstante(estantes.find(estante => estante.id === novaEstanteId)); // Atualiza a estante atual
+  } catch (err) {
+    console.error("Erro ao mudar o livro de estante:", err);
+    setFeedback({ message: 'Falha ao mover o livro. Tente novamente.', type: 'danger' });
+  } finally {
+    setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+  }
+};
   
   // --- Funções Locais com Lógica Restaurada ---
   const adicionarComentario = () => {
@@ -162,13 +257,13 @@ export default function Livro() {
     setComentarios(comentarios.filter(c => c.id !== id));
   };
 
-  const alternarFavorito = () => {
+  /*const alternarFavorito = () => {
     if (favoritos.includes(livro.id)) {
       setFavoritos(favoritos.filter(favId => favId !== livro.id));
     } else {
       setFavoritos([...favoritos, livro.id]);
     }
-  };
+  };*/
 
   const definirAvaliacao = (estrelas) => {
     setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
@@ -225,31 +320,59 @@ export default function Livro() {
                   <button className={`btn ${!livro.lendo && !livro.lido ? 'btn-secondary' : 'btn-outline-secondary'}`} onClick={() => handleStatusChange('nenhum')}>❌ Ainda não li</button>
                 </div>
               </div>
+              <div className="mt-4">
+                <button className={`btn mb-2 ${favoritos.includes(livroId) ? 'btn-danger' : 'btn-outline-danger'}`} onClick={alternarFavorito}>
+                  {favoritos.includes(livroId) ? 'Remover dos Favoritos ❤️' : 'Adicionar aos Favoritos 🤍'}
+                </button>
+              </div>
+              {livroNaEstante && (
+                <div className="mt-3">
+                  <h5>Este livro está na estante:</h5>
+                  <p>{estantes.find(estante => estante.id === livroNaEstante)?.nome || 'Estante não encontrada'}</p>
+                </div>
+              )}
               
               <div className="d-flex flex-wrap align-items-center mt-3">
-                <div className="dropdown me-2 mb-2">
+                {livroNaEstante ? (
+                  <>
+                    <button className="btn btn-outline-danger me-2 mb-2" onClick={removerDaEstante}>
+                      Remover da estante
+                    </button>
+                    <div className="dropdown me-2 mb-2">
+                      <button className="btn btn-outline-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i className="bi bi-pencil me-2"></i> Mudar de estante
+                      </button>
+                      <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                        {estantes.map(estante => (
+                          <li key={estante.id}>
+                            <button className="dropdown-item" onClick={() => mudarDeEstante(estante.id)}>{estante.nome}</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                ) : (
+                  <div className="dropdown me-2 mb-2">
                     <button className="btn btn-outline-primary dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i className="bi bi-plus-lg me-2"></i> Adicionar à Estante
+                      <i className="bi bi-plus-lg me-2"></i> Adicionar à Estante
                     </button>
                     <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                        {loadingEstantes ? (
+                      {loadingEstantes ? (
                         <li><span className="dropdown-item text-muted">Carregando...</span></li>
-                        ) : (
+                      ) : (
                         estantes.length > 0 ? (
-                            estantes.map(estante => (
+                          estantes.map(estante => (
                             <li key={estante.id}>
-                                <button className="dropdown-item" onClick={() => adicionarLivroNaEstante(estante.id)}>{estante.nome}</button>
+                              <button className="dropdown-item" onClick={() => adicionarLivroNaEstante(estante.id)}>{estante.nome}</button>
                             </li>
-                            ))
+                          ))
                         ) : (
-                            <li><span className="dropdown-item text-muted">Nenhuma estante encontrada.</span></li>
+                          <li><span className="dropdown-item text-muted">Nenhuma estante encontrada.</span></li>
                         )
-                        )}
+                      )}
                     </ul>
-                </div>
-                <button className={`btn mb-2 ${favoritos.includes(livro.id) ? 'btn-danger' : 'btn-outline-danger'}`} onClick={alternarFavorito}>
-                    {favoritos.includes(livro.id) ? 'Remover dos Favoritos ❤️' : 'Adicionar aos Favoritos 🤍'}
-                </button>
+                  </div>
+                )}
               </div>
 
               {feedback.message && (<div className={`alert alert-${feedback.type} mt-2`}>{feedback.message}</div>)}
