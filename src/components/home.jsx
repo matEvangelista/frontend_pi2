@@ -16,27 +16,40 @@ export default function Home() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchLivros = async () => {
+useEffect(() => {
+    const fetchLivros = async () => {
         try {
             setLoading(true);
-            const  user_id  = localStorage.getItem('userId');
+            const user_id = localStorage.getItem('userId');
+
             const responseFavoritos = await axios.get(`http://127.0.0.1:8000/usuarios/${user_id}/favoritos`);
             setLivrosFavoritos(responseFavoritos.data);
-            const responseRecentes = await axios.get(`http://127.0.0.1:8000/usuarios/${user_id}/livros/recentes?limite=4`);
-            setLivrosRecentes(responseRecentes.data);
-            //const response = await axios.get(`http://127.0.0.1:8000/usuarios/${user_id}/livros/registrados`);
-            //setLivros(response.data);
+
+            try {
+                const responseRecentes = await axios.get(`http://127.0.0.1:8000/usuarios/${user_id}/livros/recentes?limite=4`);
+                if (Array.isArray(responseRecentes.data) && responseRecentes.data.length > 0) {
+                    setLivrosRecentes(responseRecentes.data);
+                } else {
+                    setLivrosRecentes([]);
+                }
+            } catch (errRecentes) {
+                if (errRecentes.response && errRecentes.response.status === 404) {
+                    setLivrosRecentes([]);
+                } else {
+                    throw errRecentes;
+                }
+            }
+
         } catch (err) {
-            console.error('Error fetching livros:', err);
+            console.error('Erro ao buscar livros:', err);
             setError(err.message || 'Erro desconhecido');
         } finally {
             setLoading(false);
         }
-        };
+    };
 
-        fetchLivros();
-    }, []);
+    fetchLivros();
+}, []);
 
     if (loading) {
         return (
@@ -76,52 +89,67 @@ export default function Home() {
                     <h1 className='bold pt-5 mt-3'>Bem-vindo à sua Biblioteca</h1>
                     <p>Organize, descubra e acompanhe seus livros em um só lugar</p>
                     <div>
-                        <h2>Seus favoritos</h2>
-                        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mt-3">
-                            {livrosFavoritos.map((livro, index) => (
-                                <div className="col" key={livro.id || index}>
-                                    <Link to={`/livros/${livro.id}`} className="text-decoration-none text-dark">
-                                    <div className="card h-100 d-flex flex-column book-card">
-                                        <img 
-                                        src={livro.url_img || bookPlaceholder} 
-                                        className="card-img-top" 
-                                        alt={`Capa de ${livro.titulo}`} 
-                                        onError={(e) => {
-                                            e.target.src = bookPlaceholder;
-                                        }}
-                                        />
-                                        <div className="card-body d-flex flex-column justify-content-end">
-                                        <h5 className="card-title mt-auto">{livro.titulo}</h5>
-                                        <p className="card-text text-muted">{livro.autor || 'Autor desconhecido'}</p>
+                        {livrosFavoritos.length === 0 && livrosRecentes.length === 0 && (
+                            <div className="text-center mt-5">
+                                <h4>Você ainda não adicionou nenhum livro.</h4>
+                                <p>Adicione livros à sua estante para vê-los aqui.</p>
+                                <Link to="/descobrir" className="btn btn-primary">Descobrir novos livros</Link>
+                            </div>
+                        )}
+                        {livrosFavoritos.length > 0 && (
+                            <>
+                                <h2>Seus favoritos</h2>
+                                <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mt-3">
+                                    {livrosFavoritos.map((livro, index) => (
+                                        <div className="col" key={livro.id || index}>
+                                            <Link to={`/livros/${livro.id}`} className="text-decoration-none text-dark">
+                                            <div className="card h-100 d-flex flex-column book-card">
+                                                <img 
+                                                src={livro.url_img || bookPlaceholder} 
+                                                className="card-img-top" 
+                                                alt={`Capa de ${livro.titulo}`} 
+                                                onError={(e) => {
+                                                    e.target.src = bookPlaceholder;
+                                                }}
+                                                />
+                                                <div className="card-body d-flex flex-column justify-content-end">
+                                                <h5 className="card-title mt-auto">{livro.titulo}</h5>
+                                                <p className="card-text text-muted">{livro.autor || 'Autor desconhecido'}</p>
+                                                </div>
+                                            </div>
+                                            </Link>
                                         </div>
-                                    </div>
-                                    </Link>
+                                ))}
                                 </div>
-                        ))}
-                        </div>
-                        <h2 className='mt-5'>Adicionado recentemente</h2>
-                        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mt-3">
-                            {livrosRecentes.map((livro, index) => (
-                                <div className="col" key={livro.id || index}>
-                                    <Link to={`/livros/${livro.id}`} className="text-decoration-none text-dark">
-                                    <div className="card h-100 d-flex flex-column book-card">
-                                        <img 
-                                        src={livro.url_img || bookPlaceholder} 
-                                        className="card-img-top" 
-                                        alt={`Capa de ${livro.titulo}`} 
-                                        onError={(e) => {
-                                            e.target.src = bookPlaceholder;
-                                        }}
-                                        />
-                                        <div className="card-body d-flex flex-column justify-content-end">
-                                        <h5 className="card-title mt-auto">{livro.titulo}</h5>
-                                        <p className="card-text text-muted">{livro.autor || 'Autor desconhecido'}</p>
+                            </>
+                        )}
+                        {livrosRecentes.length > 0 && (
+                            <>
+                                <h2 className='mt-5'>Adicionado recentemente</h2>
+                                <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mt-3">
+                                    {livrosRecentes.map((livro, index) => (
+                                        <div className="col" key={livro.id || index}>
+                                            <Link to={`/livros/${livro.id}`} className="text-decoration-none text-dark">
+                                            <div className="card h-100 d-flex flex-column book-card">
+                                                <img 
+                                                src={livro.url_img || bookPlaceholder} 
+                                                className="card-img-top" 
+                                                alt={`Capa de ${livro.titulo}`} 
+                                                onError={(e) => {
+                                                    e.target.src = bookPlaceholder;
+                                                }}
+                                                />
+                                                <div className="card-body d-flex flex-column justify-content-end">
+                                                <h5 className="card-title mt-auto">{livro.titulo}</h5>
+                                                <p className="card-text text-muted">{livro.autor || 'Autor desconhecido'}</p>
+                                                </div>
+                                            </div>
+                                            </Link>
                                         </div>
-                                    </div>
-                                    </Link>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </>
+                        )}
                         <h2 className='mt-5'>Recomendados para você</h2>
                         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mt-3 pb-5">
                             {livros.map((livro, index) => (

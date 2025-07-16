@@ -1,12 +1,11 @@
-import { useParams, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Navbar from './navbar';
 import Footer from './footer';
 import './components.css';
 import bookPlaceholder from '../assets/book_placeholder.jpeg';
 
-// Cliente Axios para reutilização
 const apiClient = axios.create({
   baseURL: 'http://127.0.0.1:8000',
   headers: {
@@ -15,37 +14,64 @@ const apiClient = axios.create({
   },
   withCredentials: false,
 });
-//uepa
+
 export default function Estante() {
   const { colecaoId } = useParams();
+  const navigate = useNavigate();
   const [estante, setEstante] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchEstanteData = async () => {
-      const userId = localStorage.getItem('userId');
-      if (!userId || !colecaoId) {
-        setError("ID do usuário ou da coleção não encontrado.");
-        setLoading(false);
-        return;
-      }
+  const fetchEstanteData = useCallback(async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId || !colecaoId) {
+      setError("ID do usuário ou da coleção não encontrado.");
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
-        // Seu endpoint para ler uma coleção específica precisa do user_id e do colecao_id
-        const response = await apiClient.get(`/colecoes/${colecaoId}?user_id=${userId}`);
-        setEstante(response.data);
-      } catch (err) {
-        console.error('Erro ao buscar dados da estante:', err);
-        setError(err.response?.data?.detail || 'Erro ao carregar estante.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEstanteData();
+    try {
+      setLoading(true);
+      const response = await apiClient.get(`/colecoes/${colecaoId}?user_id=${userId}`);
+      setEstante(response.data);
+    } catch (err) {
+      console.error('Erro ao buscar dados da estante:', err);
+      setError(err.response?.data?.detail || 'Erro ao carregar estante.');
+    } finally {
+      setLoading(false);
+    }
   }, [colecaoId]);
+
+  useEffect(() => {
+    fetchEstanteData();
+  }, [fetchEstanteData]);
+
+  const editarEstante = async () => {
+    const novoNome = prompt('Digite o novo nome para a estante:', estante.nome);
+    if (novoNome && novoNome.trim() !== '') {
+      try {
+        await apiClient.put(`/colecoes/${estante.id}`, { nome: novoNome.trim() });
+        fetchEstanteData(); 
+      } catch (error) {
+        console.error("Erro ao editar estante:", error);
+        alert("Não foi possível editar a estante. Tente novamente.");
+      }
+    }
+  };
+
+  const excluirEstante = async () => {
+    if (window.confirm("Tem certeza que deseja excluir esta estante? Esta ação não pode ser desfeita e todos os livros contidos nela perderão essa associação.")) {
+      try {
+        await apiClient.delete(`/colecoes/${estante.id}`);
+        alert("Estante excluída com sucesso!");
+        navigate('/livros'); 
+      } catch (error) {
+        console.error("Erro ao excluir estante:", error);
+        alert("Não foi possível excluir a estante. Tente novamente.");
+      }
+    }
+  };
+
 
   if (loading) {
     return (
@@ -78,7 +104,18 @@ export default function Estante() {
     <div className="d-flex flex-column min-vh-100 bg-body-tertiary">
       <Navbar titulo={estante.nome} />
       <div className="container py-4 mt-5">
-        <h1 className="mb-4">{estante.nome}</h1>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h1 className="mb-0">{estante.nome}</h1>
+          <div className="btn-group" role="group">
+            <button className="btn btn-outline-secondary" onClick={editarEstante} title="Editar nome da estante">
+              <i className="bi bi-pencil me-2"></i> Editar
+            </button>
+            <button className="btn btn-outline-danger" onClick={excluirEstante} title="Excluir estante">
+              <i className="bi bi-trash me-2"></i> Excluir
+            </button>
+          </div>
+        </div>
+
         <p>Veja os livros que você adicionou a esta estante.</p>
         
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mt-3">
@@ -95,7 +132,7 @@ export default function Estante() {
                     />
                     <div className="card-body d-flex flex-column justify-content-end">
                       <h5 className="card-title mt-auto">{livro.titulo}</h5>
-                      <p className="card-text text-muted">{livro.autor || "Autor desconhecido"}</p>
+                      <p className="card-text text-muted">{livro.autor?.nome || "Autor desconhecido"}</p>
                     </div>
                   </div>
                 </Link>
