@@ -110,7 +110,6 @@ export default function Livro() {
           console.error('Erro ao buscar avaliação:', avaliacaoError);
         }
       }
-
     } catch (err) {
       console.error('Erro ao buscar dados da página do livro:', err);
       setError(err.message || 'Erro desconhecido');
