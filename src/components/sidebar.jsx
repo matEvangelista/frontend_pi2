@@ -3,10 +3,8 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-// --- Constante da API ---
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// --- Cliente Axios ---
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -20,24 +18,19 @@ const apiClient = axios.create({
 export default function Sidebar() {
   const [estantes, setEstantes] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Gerenciar o userId como um estado para garantir que a busca ocorra no momento certo.
   const [userId, setUserId] = useState(null);
 
-  // Efeito que roda uma única vez para pegar o userId do localStorage.
   useEffect(() => {
     const storedUserId = localStorage.getItem('userId');
     if (storedUserId) {
       setUserId(storedUserId);
     } else {
-        // Se não houver ID, paramos o carregamento para não ficar em loop infinito.
         setLoading(false);
         console.warn("Nenhum userId encontrado no localStorage na montagem inicial.");
     }
-  }, []); // Array de dependências vazio para rodar apenas uma vez.
+  }, []);
 
-  // A função de busca agora depende do estado `userId`.
   const fetchEstantes = useCallback(async () => {
-    // Só executa se o userId existir.
     if (!userId) {
       return;
     }
@@ -56,30 +49,36 @@ export default function Sidebar() {
     } finally {
       setLoading(false);
     }
-  }, [userId]); // Depende do `userId` do estado.
-
-  // Efeito para buscar as estantes sempre que o `userId` for definido.
+  }, [userId]);
   useEffect(() => {
     fetchEstantes();
   }, [fetchEstantes]);
 
 
-  // Funções de editar e excluir
-  function editarEstante(id, novoNome, novoEmoji) {
-    // TODO: Adicionar chamada à API para persistir a edição e depois chamar fetchEstantes()
-    setEstantes((prev) =>
-      prev.map((estante) =>
-        estante.id === id ? { ...estante, nome: novoNome, emoji: novoEmoji } : estante
-      )
-    );
-  }
+    const editarEstante = async (id, novoNome) => {
+    try {
+      await apiClient.put(`/colecoes/${id}`, {
+        nome: novoNome,
+      });
+      fetchEstantes(); 
+    } catch (error) {
+      console.error("Erro ao editar estante:", error);
+      alert("Não foi possível editar a estante. Tente novamente.");
+    }
+  };
 
-  function excluirEstante(id) {
-     // TODO: Adicionar chamada à API para persistir a exclusão e depois chamar fetchEstantes()
-    setEstantes((prev) => prev.filter((estante) => estante.id !== id));
-  }
+  const excluirEstante = async (id) => {
+    if (window.confirm("Tem certeza que deseja excluir esta estante? Esta ação não pode ser desfeita.")) {
+        try {
+            await apiClient.delete(`/colecoes/${id}`);
+            fetchEstantes();
+        } catch (error) {
+            console.error("Erro ao excluir estante:", error);
+            alert("Não foi possível excluir a estante. Tente novamente.");
+        }
+    }
+  };
   
-  // Callback para o modal filho chamar quando uma estante for criada.
   const handleEstanteCriada = () => {
     fetchEstantes();
   };
@@ -89,22 +88,16 @@ export default function Sidebar() {
       <div className="sidebar d-none d-md-block bg-light border-end">
         <SidebarContent
           estantes={estantes}
-          onEditar={editarEstante}
-          onExcluir={excluirEstante}
           loading={loading}
         />
       </div>
 
       <div className="offcanvas offcanvas-start d-md-none" tabIndex="-1" id="mobileSidebar">
         <div className="offcanvas-header">
-          <h5 className="offcanvas-title">Menu</h5>
-          <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
         </div>
         <div className="offcanvas-body">
           <SidebarContent
             estantes={estantes}
-            onEditar={editarEstante}
-            onExcluir={excluirEstante}
             loading={loading}
           />
         </div>
@@ -116,45 +109,27 @@ export default function Sidebar() {
   );
 }
 
-function SidebarContent({ estantes, onEditar, onExcluir, loading }) {
+function SidebarContent({ estantes, loading }) {
   return (
     <div className="p-3 d-flex flex-column h-100 justify-content-between">
       <ul className="nav flex-column">
-        {/* Links de navegação */}
         <li className="nav-item mb-2"><Link to="/" className="nav-link text-dark"><i className="bi bi-house-door me-2"></i> Início</Link></li>
         <li className="nav-item mb-2"><Link to="/livros" className="nav-link text-dark"><i className="bi bi-bookshelf me-2"></i> Minha Biblioteca</Link></li>
         <li className="nav-item mb-2"><Link to="/descobrir" className="nav-link text-dark"><i className="bi bi-search me-2"></i> Descobrir</Link></li>
         <li className="nav-item mb-2"><Link to="/lendo-agora" className="nav-link text-dark"><i className="bi bi-book-half me-2"></i> Lendo Agora</Link></li>
-        
-        {/* ALTERAÇÃO: Movi o link "Lidos" para cá */}
         <li className="nav-item mb-4"><Link to="/lidos" className="nav-link text-dark"><i className="bi bi-check2-circle me-2"></i> Lidos</Link></li>
 
         <h6 className="text-uppercase text-muted px-2">Minhas Estantes</h6>
 
-        {/* Renderização dinâmica das estantes */}
         {loading ? (
            <li className="nav-item mb-2 px-2 text-muted">Carregando estantes...</li>
         ) : (
           estantes.map((estante) => (
-            <li key={estante.id} className="nav-item mb-2 d-flex align-items-center justify-content-between">
-              <Link to={`/estante/${estante.id}`} className="nav-link text-dark flex-grow-1">
+            <li key={estante.id} className="nav-item mb-2">
+              <Link to={`/estante/${estante.id}`} className="nav-link text-dark">
                 <span className="me-2">{estante.emoji || '📚'}</span>
                 {estante.nome}
               </Link>
-              <div className="btn-group btn-group-sm ms-2" role="group">
-                <button className="btn btn-outline-secondary" onClick={() => {
-                    const novoNome = prompt('Novo nome da estante:', estante.nome);
-                    if (novoNome) {
-                      const novoEmoji = prompt('Novo emoji da estante:', estante.emoji) || estante.emoji;
-                      onEditar(estante.id, novoNome, novoEmoji);
-                    }
-                  }} title="Editar estante">
-                  <i className="bi bi-pencil"></i>
-                </button>
-                <button className="btn btn-outline-danger" onClick={() => onExcluir(estante.id)} title="Excluir estante">
-                  <i className="bi bi-trash"></i>
-                </button>
-              </div>
             </li>
           ))
         )}
@@ -237,7 +212,7 @@ function ModalAdicionarLivro() {
             if (modal) modal.hide();
         }
         setSuccess('');
-        window.location.reload(); // Idealmente, isso também se tornaria um callback.
+        window.location.reload();
       }, 1500);
     } catch (err) {
       setError('Ocorreu um erro ao criar o livro. Tente novamente.');
