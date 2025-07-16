@@ -99,6 +99,17 @@ export default function Livro() {
         setLivroNaEstante(estanteComLivro ? estanteComLivro.id : null);
       }
 
+      // Buscar avaliação prévia do usuário
+      try {
+        const avaliacaoResponse = await apiClient.get(`/usuarios/${userId}/livros/${livroId}/avaliacao`);
+        if (avaliacaoResponse.data && typeof avaliacaoResponse.data.nota === 'number') {
+          setAvaliacoes(prev => ({ ...prev, [livroId]: avaliacaoResponse.data.nota }));
+        }
+      } catch (avaliacaoError) {
+        if (avaliacaoError.response?.status !== 404) {
+          console.error('Erro ao buscar avaliação:', avaliacaoError);
+        }
+      }
     } catch (err) {
       console.error('Erro ao buscar dados da página do livro:', err);
       setError(err.message || 'Erro desconhecido');
@@ -255,21 +266,29 @@ export default function Livro() {
     }
   };
   
-  const definirAvaliacao = async (estrelas) => {
-    if (!loggedInUserId) {
-        setFeedback({ message: 'Você precisa estar logado para avaliar.', type: 'warning' });
-        return;
+  // Função para avaliar o livro
+  const avaliarLivro = async (estrelas) => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      setFeedback({ message: 'Você precisa estar logado para avaliar livros.', type: 'warning' });
+      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+      return;
     }
+    setFeedback({ message: '', type: '' });
     try {
-        await apiClient.post(`/usuarios/${loggedInUserId}/livros/${livroId}/avaliar`, { nota: estrelas });
-        setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
-        setFeedback({ message: 'Sua avaliação foi registrada!', type: 'success' });
+      await apiClient.post(`/usuarios/${userId}/livros/${livroId}/avaliar`, { nota: estrelas });
+      setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
+      setFeedback({ message: 'Avaliação registrada com sucesso!', type: 'success' });
     } catch (err) {
-        console.error("Erro ao registrar avaliação:", err);
-        setFeedback({ message: 'Falha ao registrar a avaliação.', type: 'danger' });
+      console.error('Erro ao avaliar livro:', err);
+      setFeedback({ message: 'Falha ao registrar avaliação. Tente novamente.', type: 'danger' });
     } finally {
-        setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
     }
+  };
+
+  const definirAvaliacao = (estrelas) => {
+    avaliarLivro(estrelas);
   };
 
   const handleEditarLivroChange = (e) => {
