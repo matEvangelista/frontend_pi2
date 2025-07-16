@@ -42,6 +42,8 @@ export default function Livro() {
   const [loadingEstantes, setLoadingEstantes] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', type: '' });
   const [livroNaEstante, setLivroNaEstante] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [editPreview, setEditPreview] = useState(null);
   const loggedInUserId = parseInt(localStorage.getItem('userId'), 10);
 
   const fetchData = useCallback(async () => {
@@ -194,6 +196,20 @@ export default function Livro() {
     if (window.confirm(`Tem certeza que deseja deletar "${livro.titulo}"? Esta ação não pode ser desfeita.`)) {
         try {
             await apiClient.delete(`/livros/${livroId}`);
+            
+            // Delete image from server if it exists and is from our server
+            if (livro.url_img && livro.url_img.startsWith('/static/')) {
+                try {
+                    await apiClient.delete('/upload/imagem_livro/', {
+                        params: { url_img: livro.url_img }
+                    });
+                    console.log('Imagem do livro deletada com sucesso');
+                } catch (deleteError) {
+                    console.error('Erro ao deletar imagem do livro:', deleteError);
+                    // Don't show error to user as the main operation was successful
+                }
+            }
+            
             alert('Livro deletado com sucesso!');
             navigate('/livros');
         } catch (err) {
@@ -296,6 +312,77 @@ export default function Livro() {
     setLivro({ ...livro, [name]: value });
   };
 
+  const handleEditImagemChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setEditPreview(url);
+      setSelectedFile(file);
+    } else {
+      setEditPreview(null);
+      setSelectedFile(null);
+    }
+  };
+
+  const handleSalvarEdicaoLivro = async () => {
+    try {
+      let imageUrl = livro.url_img;
+      const originalImageUrl = livro.url_img;
+      
+      // Upload image if a file was selected
+      if (selectedFile) {
+        const formDataImage = new FormData();
+        formDataImage.append('file', selectedFile);
+        
+        try {
+          const uploadResponse = await apiClient.post('/upload/imagem_livro/', formDataImage, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          imageUrl = uploadResponse.data.url_img;
+        } catch (uploadError) {
+          console.error('Erro ao fazer upload da imagem:', uploadError);
+          setFeedback({ message: 'Erro ao fazer upload da imagem. Tente novamente.', type: 'danger' });
+          return;
+        }
+      }
+
+      const livroData = {
+        titulo: livro.titulo,
+        autor: livro.autor,
+        descricao: livro.descricao,
+        url_img: imageUrl
+      };
+
+      await apiClient.put(`/livros/${livroId}`, livroData);
+      setLivro({ ...livro, url_img: imageUrl });
+      
+      // Delete old image if a new one was uploaded and the old one was from our server
+      if (selectedFile && originalImageUrl && originalImageUrl.startsWith('/static/')) {
+        try {
+          await apiClient.delete('/upload/imagem_livro/', {
+            params: { url_img: originalImageUrl }
+          });
+          console.log('Imagem antiga deletada com sucesso');
+        } catch (deleteError) {
+          console.error('Erro ao deletar imagem antiga:', deleteError);
+          // Don't show error to user as the main operation was successful
+        }
+      }
+      
+      setEditandoLivro(false);
+      setSelectedFile(null);
+      setEditPreview(null);
+      setFeedback({ message: 'Livro atualizado com sucesso!', type: 'success' });
+    } catch (err) {
+      console.error('Erro ao atualizar livro:', err);
+      setFeedback({ message: 'Falha ao atualizar o livro.', type: 'danger' });
+    } finally {
+      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -324,7 +411,7 @@ export default function Livro() {
           <div className="row py-5 min-vh-100">
             <div className="col-lg-4 my-auto">
               <img 
-                src={livro.url_img && livro.url_img.startsWith('/static/') ? `http://127.0.0.1:8000${livro.url_img}` : BOOK_PLACEHOLDER_URL} 
+                src={livro.url_img ? (livro.url_img.startsWith('/static/') ? `http://127.0.0.1:8000${livro.url_img}` : livro.url_img) : BOOK_PLACEHOLDER_URL} 
                 alt={livro.titulo} 
                 className="img-fluid rounded"
                 onError={(e) => { e.target.src = BOOK_PLACEHOLDER_URL; }}
@@ -399,7 +486,32 @@ export default function Livro() {
                   <div className="mb-2"><label className="form-label">Título</label><input type="text" name="titulo" value={livro.titulo} onChange={handleEditarLivroChange} className="form-control" /></div>
                   <div className="mb-2"><label className="form-label">Autor</label><input type="text" name="autor" value={livro.autor} onChange={handleEditarLivroChange} className="form-control" /></div>
                   <div className="mb-2"><label className="form-label">Descrição</label><textarea name="descricao" value={livro.descricao || ''} onChange={handleEditarLivroChange} className="form-control" rows="3" /></div>
-                  <div className="mb-2"><label className="form-label">URL da imagem</label><input type="text" name="url_img" value={livro.url_img || ''} onChange={handleEditarLivroChange} className="form-control" /></div>
+                  <div className="mb-2">
+                    <label className="form-label">Imagem da Capa</label>
+                    <input type="file" className="form-control" accept="image/*" onChange={handleEditImagemChange} />
+                    <div className="form-text">Selecione uma nova imagem para substituir a atual</div>
+                  </div>
+                  {editPreview && (
+                    <div className="text-center mb-3">
+                      <img 
+                        src={editPreview} 
+                        alt="Prévia" 
+                        className="img-fluid rounded" 
+                        style={{ maxHeight: '200px' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="mt-3">
+                    <button className="btn btn-success me-2" onClick={handleSalvarEdicaoLivro}>Salvar</button>
+                    <button className="btn btn-secondary" onClick={() => {
+                      setEditandoLivro(false);
+                      setSelectedFile(null);
+                      setEditPreview(null);
+                    }}>Cancelar</button>
+                  </div>
                 </div>
               )}
 

@@ -156,10 +156,10 @@ function ModalAdicionarLivro() {
     titulo: '',
     autor_nome: '',
     categorias: '',
-    url_img: '',
     descricao: '',
     ano_publicacao: ''
   });
+  const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -175,10 +175,10 @@ function ModalAdicionarLivro() {
     if (file) {
       const url = URL.createObjectURL(file);
       setPreview(url);
-      setFormData(prev => ({ ...prev, url_img: url }));
+      setSelectedFile(file);
     } else {
       setPreview(null);
-      setFormData(prev => ({ ...prev, url_img: '' }));
+      setSelectedFile(null);
     }
   }
 
@@ -191,6 +191,28 @@ function ModalAdicionarLivro() {
     setError('');
     setSuccess('');
     try {
+      let imageUrl = '';
+      
+      // Upload image if a file was selected
+      if (selectedFile) {
+        const formDataImage = new FormData();
+        formDataImage.append('file', selectedFile);
+        
+        try {
+          const uploadResponse = await apiClient.post('/upload/imagem_livro/', formDataImage, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          imageUrl = uploadResponse.data.url_img;
+        } catch (uploadError) {
+          console.error('Erro ao fazer upload da imagem:', uploadError);
+          setError('Erro ao fazer upload da imagem. Tente novamente.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const livroData = {
         titulo: formData.titulo.trim(),
         autor_nome: formData.autor_nome.trim(),
@@ -198,12 +220,13 @@ function ModalAdicionarLivro() {
       };
       if (formData.descricao && formData.descricao.trim()) livroData.descricao = formData.descricao.trim();
       if (formData.ano_publicacao && formData.ano_publicacao.trim()) livroData.ano_publicacao = parseInt(formData.ano_publicacao);
-      if (formData.url_img && formData.url_img.trim()) livroData.url_img = formData.url_img.trim();
+      if (imageUrl) livroData.url_img = imageUrl;
 
       const user_id = localStorage.getItem('userId');
       await apiClient.post(`/usuarios/${user_id}/livros/`, livroData);   
       setSuccess(`Livro "${formData.titulo}" criado com sucesso!`);
-      setFormData({ titulo: '', autor_nome: '', categorias: '', url_img: '', descricao: '', ano_publicacao: '' });
+      setFormData({ titulo: '', autor_nome: '', categorias: '', descricao: '', ano_publicacao: '' });
+      setSelectedFile(null);
       setPreview(null);
       setTimeout(() => {
         const modalEl = document.getElementById('modalAdicionarLivro');
@@ -257,10 +280,19 @@ function ModalAdicionarLivro() {
                     <div className="mb-3">
                       <label htmlFor="imagemLivro" className="form-label">Imagem da Capa</label>
                       <input type="file" className="form-control" id="imagemLivro" accept="image/*" onChange={handleImagemChange} />
+                      <div className="form-text">Selecione uma imagem para a capa do livro</div>
                     </div>
                     {preview && (
                       <div className="text-center mb-3">
-                        <img src={preview} alt="Prévia" className="img-fluid rounded" style={{ maxHeight: '200px' }} />
+                        <img 
+                          src={preview} 
+                          alt="Prévia" 
+                          className="img-fluid rounded" 
+                          style={{ maxHeight: '200px' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
                       </div>
                     )}
                 </div>
