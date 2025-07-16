@@ -3,6 +3,15 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import bookPlaceholder from '../assets/book_placeholder.jpeg';
 
+// Helper function to get the correct image URL
+const getImageUrl = (urlImg) => {
+  if (!urlImg) return bookPlaceholder;
+  if (urlImg.startsWith('/static/')) {
+    return `http://127.0.0.1:8000${urlImg}`;
+  }
+  return urlImg;
+};
+
 export default function Livros() {
   const [livros, setLivros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +77,7 @@ export default function Livros() {
               <Link to={`/livros/${livro.id}`} className="text-decoration-none text-dark">
                 <div className="card h-100 d-flex flex-column book-card">
                   <img 
-                    src={livro.url_img || bookPlaceholder} 
+                    src={getImageUrl(livro.url_img)} 
                     className="card-img-top" 
                     alt={`Capa de ${livro.titulo}`} 
                     onError={(e) => {
