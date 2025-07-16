@@ -71,8 +71,19 @@ export default function Livro() {
         const estantesResponse = await apiClient.get(`/usuarios/${userId}/colecoes/`);
         setEstantes(estantesResponse.data || []);
         const estanteComLivro = estantesResponse.data.find(estante => estante.livros.some(livro => livro.id === parseInt(livroId)));
-        
         setLivroNaEstante(estanteComLivro ? estanteComLivro.id : null);
+
+        // Buscar avaliação prévia do usuário
+        try {
+          const avaliacaoResponse = await apiClient.get(`/usuarios/${userId}/livros/${livroId}/avaliacao`);
+          if (avaliacaoResponse.data && typeof avaliacaoResponse.data.nota === 'number') {
+            setAvaliacoes(prev => ({ ...prev, [livroId]: avaliacaoResponse.data.nota }));
+          }
+        } catch (avaliacaoError) {
+          if (avaliacaoError.response?.status !== 404) {
+            console.error('Erro ao buscar avaliação:', avaliacaoError);
+          }
+        }
       }
 
       setLivro({ ...livroData, ...interactionStatus });
@@ -265,8 +276,29 @@ const mudarDeEstante = async (novaEstanteId) => {
     }
   };*/
 
+  // Função para avaliar o livro
+  const avaliarLivro = async (estrelas) => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      setFeedback({ message: 'Você precisa estar logado para avaliar livros.', type: 'warning' });
+      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+      return;
+    }
+    setFeedback({ message: '', type: '' });
+    try {
+      await apiClient.post(`/usuarios/${userId}/livros/${livroId}/avaliar`, { nota: estrelas });
+      setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
+      setFeedback({ message: 'Avaliação registrada com sucesso!', type: 'success' });
+    } catch (err) {
+      console.error('Erro ao avaliar livro:', err);
+      setFeedback({ message: 'Falha ao registrar avaliação. Tente novamente.', type: 'danger' });
+    } finally {
+      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+    }
+  };
+
   const definirAvaliacao = (estrelas) => {
-    setAvaliacoes({ ...avaliacoes, [livro.id]: estrelas });
+    avaliarLivro(estrelas);
   };
 
   const handleEditarLivroChange = (e) => {
